@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:540px;height:960px;overflow:hidden;background:#CBD9DA}
+body{font-family:"Noto Serif CJK TC",serif;position:relative}
+
+#stage{position:absolute;inset:0;overflow:hidden}
+#svg{position:absolute;left:0;top:0;width:540px;height:960px;display:block}
+
+/* ---- 紙質顆粒：兩層，一層壓暗一層提亮，模擬水粉紙紋 ---- */
+#grainA{position:absolute;inset:-20px;background:url(grain.png) repeat;
+        opacity:.20;mix-blend-mode:overlay;pointer-events:none}
+#grainB{position:absolute;inset:-20px;background:url(grain.png) repeat;
+        background-size:150px 150px;opacity:.10;mix-blend-mode:multiply;pointer-events:none}
+/* 米色紙調 + 暗角 */
+#paper{position:absolute;inset:0;background:rgba(240,228,205,.10);mix-blend-mode:multiply;pointer-events:none}
+#vig{position:absolute;inset:0;pointer-events:none;
+     background:radial-gradient(ellipse 82% 68% at 50% 44%, rgba(0,0,0,0) 46%, rgba(34,30,20,.26) 100%)}
+/* 暖光 */
+#warm{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;
+      background:radial-gradient(ellipse 66% 46% at 20% 6%, rgba(255,232,180,1) 0%, rgba(255,232,180,0) 72%)}
+
+.mote{position:absolute;border-radius:50%;background:#FFF3D8;filter:blur(1.4px);pointer-events:none}
+
+/* ---- 字卡 ---- */
+#scrim{position:absolute;left:0;top:0;width:540px;height:430px;pointer-events:none;
+       background:linear-gradient(to bottom, rgba(16,24,18,.40) 0%, rgba(16,24,18,.30) 34%,
+                  rgba(16,24,18,.14) 66%, rgba(16,24,18,0) 100%)}
+.card{position:absolute;left:44px;right:44px;top:104px;text-align:center;opacity:0}
+.t{font-size:35px;font-weight:700;color:#F4EADA;line-height:1.52;letter-spacing:.02em;
+   text-shadow:0 2px 10px rgba(20,28,20,.55)}
+.t .hi{color:#E9A87B}
+.d{font-size:17px;color:rgba(240,231,214,.82);margin-top:12px;letter-spacing:.10em;
+   text-shadow:0 1px 6px rgba(20,28,20,.6)}
+#wm{position:absolute;bottom:24px;width:100%;text-align:center;
+    color:rgba(244,234,218,.62);font-size:13px;letter-spacing:.14em}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="svg" viewBox="0 0 540 960" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#AFC7CF"/>
+        <stop offset="55%" stop-color="#CFDBD4"/>
+        <stop offset="100%" stop-color="#E4E4D0"/>
+      </linearGradient>
+      <!-- 空氣遠近感：越遠越淡，用漸層避免出現硬邊 -->
+      <linearGradient id="hazeG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#E6EADC" stop-opacity=".62"/>
+        <stop offset="55%"  stop-color="#E6EADC" stop-opacity=".26"/>
+        <stop offset="100%" stop-color="#E6EADC" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+
+    <g id="L_sky">
+      <rect x="-80" y="-80" width="700" height="260" fill="url(#skyG)"/>
+    </g>
+    <g id="L_clouds"></g>
+    <g id="L_birds"></g>
+
+    <!-- 遠景山丘（薄霧化） -->
+    <g id="L_hills">
+      <path d="M-60,166 C 60,136 150,156 250,148 C 350,140 440,158 600,144 L600,320 L-60,320 Z" fill="#93AA73"/>
+      <path d="M-60,182 C 80,164 180,186 300,170 C 400,158 500,178 600,164 L600,340 L-60,340 Z" fill="#84A067"/>
+      <!-- 整片草坡底 -->
+      <rect x="-60" y="300" width="660" height="720" fill="#77985A"/>
+    </g>
+
+    <g id="L_back"></g>
+    <rect id="haze" x="-60" y="110" width="660" height="330" fill="url(#hazeG)"/>
+    <g id="L_mid"></g>
+
+    <g id="L_band3">
+      <path d="M-60,516 C 90,504 200,524 320,512 C 420,502 510,518 600,508 L600,1020 L-60,1020 Z" fill="#66914B"/>
+    </g>
+    <g id="L_shadow"></g>
+    <g id="L_front"></g>
+
+    <g id="L_band4">
+      <path d="M-60,706 C 110,692 230,714 350,700 C 450,689 530,706 600,698 L600,1020 L-60,1020 Z" fill="#75A253"/>
+      <path d="M-60,872 C 130,860 250,880 380,868 C 470,860 540,872 600,866 L600,1020 L-60,1020 Z" fill="#82AE5C"/>
+    </g>
+
+    <g id="L_tufts"></g>
+    <g id="L_figure"></g>
+    <g id="L_fg"></g>
+  </svg>
+
+  <div id="warm"></div>
+  <div id="paper"></div>
+  <div id="grainB"></div>
+  <div id="grainA"></div>
+  <div id="vig"></div>
+  <div id="motes"></div>
+
+  <div id="scrim"></div>
+
+  <div class="card" id="c1">
+    <div class="t">這種繪本動畫<span class="hi">，怎麼做？</span></div>
+    <div class="d">不用剪輯軟體 ・ 它其實是一個網頁</div>
+  </div>
+  <div class="card" id="c2">
+    <div class="t">第一步<span class="hi">・ 先把風格定死</span></div>
+    <div class="d">平塗 ・ 低彩度 ・ 大色塊 ・ 紙紋顆粒</div>
+  </div>
+  <div class="card" id="c3">
+    <div class="t">第二步<span class="hi">・ 畫面要分層</span></div>
+    <div class="d">天空 ・ 遠樹 ・ 近樹 ・ 草地 ・ 角色</div>
+  </div>
+  <div class="card" id="c4">
+    <div class="t">第三步<span class="hi">・ 只動一點點</span></div>
+    <div class="d">風 ・ 衣角 ・ 兔子的耳朵</div>
+  </div>
+  <div class="card" id="c5">
+    <div class="t">第四步<span class="hi">・ 鏡頭慢慢推進</span></div>
+    <div class="d">視差一出來 ・ 整張畫就活了</div>
+  </div>
+
+  <div id="wm">@aibunny.makes</div>
+</div>
+
+<script>
+/* ============================================================
+   固定亂數：分段渲染會重新載入頁面，必須每次生成一模一樣的場景
+   ============================================================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+var rnd = mulberry32(20260808);
+function R(a,b){return a+(b-a)*rnd()}
+
+var SVGNS="http://www.w3.org/2000/svg";
+function mk(tag,attrs,parent){var e=document.createElementNS(SVGNS,tag);
+  for(var k in attrs)e.setAttribute(k,attrs[k]); if(parent)parent.appendChild(e); return e}
+
+/* ---------- 樹叢：圓錐狀灌木（topiary） ---------- */
+/* 圓頂柱狀（像修剪過的柏樹），不是尖三角：控制點拉到 0.94w 讓頂部飽滿 */
+function bushPath(cx,by,w,h){
+  return "M"+(cx-w)+","+by+
+    " C"+(cx-w*1.02)+","+(by-h*0.54)+" "+(cx-w*0.78)+","+(by-h*0.92)+" "+cx+","+(by-h)+
+    " C"+(cx+w*0.78)+","+(by-h*0.92)+" "+(cx+w*1.02)+","+(by-h*0.54)+" "+(cx+w)+","+by+" Z";
+}
+function makeBush(parent,cx,by,w,h,base,lite,dark){
+  var g=mk("g",{},parent);
+  mk("ellipse",{cx:cx,cy:by+1,rx:w*1.02,ry:w*0.20,fill:dark,opacity:.30},g);
+  mk("path",{d:bushPath(cx,by,w,h),fill:base},g);
+
+  var cid="cl"+Math.floor(rnd()*1e9);
+  var cp=mk("clipPath",{id:cid},g);
+  mk("path",{d:bushPath(cx,by,w,h)},cp);
+  var inner=mk("g",{"clip-path":"url(#"+cid+")"},g);
+
+  // 受光／背光都用橢圓做（用偏移的錐形會在頂端切出奇怪的鉤狀邊）
+  mk("ellipse",{cx:cx-w*0.34,cy:by-h*0.60,rx:w*0.60,ry:h*0.44,fill:lite,opacity:.34},inner);
+  mk("ellipse",{cx:cx+w*0.82,cy:by-h*0.46,rx:w*0.78,ry:h*0.58,fill:dark,opacity:.32},inner);
+  // 頂端亮邊
+  mk("ellipse",{cx:cx-w*0.16,cy:by-h*0.88,rx:w*0.40,ry:h*0.08,fill:lite,opacity:.34},inner);
+  // 葉團質感
+  var n=Math.max(7,Math.round(h/16));
+  for(var i=0;i<n;i++){
+    var rx=R(w*0.14,w*0.30), ry=rx*R(0.55,0.85);
+    var t=R(0.05,0.96);
+    var yy=by-h*t;
+    var spread=w*(1-Math.pow(t,2.2))*0.86;
+    var xx=cx+R(-spread,spread);
+    mk("ellipse",{cx:xx,cy:yy,rx:rx,ry:ry,
+      fill:(rnd()<0.45?dark:lite),opacity:R(0.10,0.26)},inner);
+  }
+  return g;
+}
+function row(parent,by,w,h,step,x0,base,lite,dark,jit){
+  var arr=[];
+  for(var x=x0;x<610;x+=step){
+    var ww=w*R(0.86,1.18), hh=h*R(1-jit,1+jit);
+    arr.push(makeBush(parent,x+R(-step*0.18,step*0.18),by+R(-5,5),ww,hh,base,lite,dark));
+  }
+  return arr;
+}
+
+var backRow  = row(document.getElementById("L_back"),  256, 26,  92, 30, -22, "#587A48","#72935A","#3E5C38",0.26);
+var midRow   = row(document.getElementById("L_mid"),   414, 41, 152, 50, -28, "#3E6039","#587B45","#2A4630",0.22);
+var frontRow = row(document.getElementById("L_front"), 606, 64, 238, 80, -34, "#2A4A2C","#446A38","#193020",0.28);
+
+/* 樹腳落在草地上的暗帶：只壓一條，不要畫成一顆顆浮在半空的橢圓 */
+var Lsh=document.getElementById("L_shadow");
+mk("path",{d:"M-60,592 C 120,586 260,600 400,592 C 480,588 550,596 600,592 L600,646 L-60,646 Z",
+  fill:"#20401F",opacity:.20},Lsh);
+
+/* ---------- 草地筆觸 ---------- */
+var Ltuf=document.getElementById("L_tufts");
+var tuftG=[];
+for(var q=0;q<3;q++) tuftG.push(mk("g",{},Ltuf));
+// 大片柔和的深淺補丁，讓草地不要像一塊色紙
+for(var i=0;i<26;i++){
+  var py=R(646,958);
+  mk("ellipse",{cx:R(-40,580),cy:py,rx:R(60,150),ry:R(16,40),
+    fill:(rnd()<0.5?"#5C8543":"#8CB863"),opacity:R(0.09,0.18)},
+    tuftG[py<740?0:(py<862?1:2)]);
+}
+for(var i=0;i<360;i++){
+  var y=R(636,958);
+  var depth = y<740?0 : (y<862?1:2);
+  var x=R(-24,566);
+  var len=R(4,9)*(0.55+(y-500)/430);
+  var col = rnd()<0.5 ? "#42682F" : "#9AC272";
+  mk("path",{d:"M"+x+","+y+" q"+R(-2,2)+","+(-len*0.6)+" "+R(-3.5,3.5)+","+(-len),
+    stroke:col,"stroke-width":R(1.1,2.3),fill:"none",opacity:R(0.28,0.58),
+    "stroke-linecap":"round"},tuftG[depth]);
+}
+
+/* ---------- 雲 ---------- */
+var Lc=document.getElementById("L_clouds"); var clouds=[];
+for(var i=0;i<4;i++){
+  var g=mk("g",{},Lc);
+  var bx=R(-40,560), by=R(28,110), s=R(0.7,1.3);
+  for(var j=0;j<4;j++)
+    mk("ellipse",{cx:bx+j*22*s+R(-6,6),cy:by+R(-5,5),rx:R(20,34)*s,ry:R(8,13)*s,
+      fill:"#F3F1E6",opacity:R(0.35,0.6)},g);
+  clouds.push({g:g,x:bx,sp:R(1.6,3.4)});
+}
+
+/* ---------- 鳥 ---------- */
+var Lb=document.getElementById("L_birds"); var birds=[];
+for(var i=0;i<3;i++){
+  var g=mk("g",{},Lb);
+  mk("path",{d:"M-5,0 q5,-4 5,0 q0,-4 5,0",stroke:"#4A5A50","stroke-width":1.4,
+    fill:"none","stroke-linecap":"round"},g);
+  birds.push({g:g,y:R(38,96),ph:R(0,6),sc:R(0.7,1.1),dl:i*2.3});
+}
+
+/* ---------- 人物 + 兔子 ---------- */
+var Lf=document.getElementById("L_figure");
+var FX=232, FY=868;                       // 站立位置（腳）
+var figG=mk("g",{},Lf);
+mk("ellipse",{cx:FX+4,cy:FY+3,rx:30,ry:7,fill:"#28421F",opacity:.34},figG);
+
+var coatG=mk("g",{},figG);                // 大衣（會擺動）
+mk("path",{d:"M"+(FX-15)+","+(FY-136)+
+  " C"+(FX-30)+","+(FY-116)+" "+(FX-31)+","+(FY-56)+" "+(FX-33)+","+(FY-2)+
+  " L"+(FX+33)+","+(FY-2)+
+  " C"+(FX+31)+","+(FY-56)+" "+(FX+30)+","+(FY-116)+" "+(FX+15)+","+(FY-136)+" Z",
+  fill:"#14161B"},coatG);
+mk("path",{d:"M"+(FX-15)+","+(FY-136)+" C"+(FX-26)+","+(FY-118)+" "+(FX-27)+","+(FY-70)+" "+(FX-28)+","+(FY-20)+
+  " L"+(FX-16)+","+(FY-18)+" C"+(FX-17)+","+(FY-70)+" "+(FX-14)+","+(FY-116)+" "+(FX-8)+","+(FY-134)+" Z",
+  fill:"#23262E",opacity:.85},coatG);
+mk("ellipse",{cx:FX-27,cy:FY-74,rx:4,ry:5.5,fill:"#E0AB92"},coatG);   // 手
+mk("ellipse",{cx:FX+27,cy:FY-74,rx:4,ry:5.5,fill:"#E0AB92"},coatG);
+
+// 米色領口（一點點暖色讓黑大衣不死板）
+mk("path",{d:"M"+(FX-13)+","+(FY-137)+" q13,7 26,0 q-4,7 -13,7.5 q-9,-.5 -13,-7.5 Z",
+  fill:"#E4D8BE",opacity:.9},coatG);
+
+var headG=mk("g",{},figG);                // 頭（背影，不畫五官 —— 樸素派的關鍵）
+mk("rect",{x:FX-4.5,y:FY-150,width:9,height:13,fill:"#DFA98F"},headG);   // 頸
+mk("circle",{cx:FX,cy:FY-157,r:13.5,fill:"#E8B79E"},headG);
+// 髮：比頭略寬的短鮑伯，下緣平一點，避免變成一顆球
+mk("path",{d:"M"+(FX-15.5)+","+(FY-155)+
+  " a15.5,16 0 0 1 31,0"+
+  " q1,9 -2,12.5 q-13.5,5 -27,0 q-3,-3.5 -2,-12.5 Z",fill:"#C25A3A"},headG);
+mk("path",{d:"M"+(FX-14)+","+(FY-149)+" q14,6.5 28,0 q-1.5,7.5 -4,9.5 q-10,3 -20,0 q-2.5,-2 -4,-9.5 Z",
+  fill:"#A8452C",opacity:.55},headG);
+mk("path",{d:"M"+(FX-13)+","+(FY-163)+" q7,-6 15,-3",stroke:"#DA7A56","stroke-width":2.4,
+  fill:"none",opacity:.55,"stroke-linecap":"round"},headG);
+
+/* 兔子 */
+var rabG=mk("g",{},Lf);
+var RX=FX+66, RY=FY+8;
+mk("ellipse",{cx:RX,cy:RY+2,rx:17,ry:4,fill:"#28421F",opacity:.3},rabG);
+var rabBody=mk("g",{},rabG);
+mk("ellipse",{cx:RX-3,cy:RY-11,rx:15,ry:10.5,fill:"#F3EEE3"},rabBody);
+mk("ellipse",{cx:RX-15,cy:RY-13,rx:4.6,ry:4.6,fill:"#E6DFD1"},rabBody);   // 尾巴
+mk("ellipse",{cx:RX+11,cy:RY-21,rx:8,ry:7.5,fill:"#F6F2E9"},rabBody);     // 頭
+var ear1=mk("g",{},rabBody), ear2=mk("g",{},rabBody);
+mk("ellipse",{cx:RX+8,cy:RY-33,rx:2.7,ry:8.5,fill:"#F3EEE3"},ear1);
+mk("ellipse",{cx:RX+13.5,cy:RY-34,rx:2.7,ry:9,fill:"#F3EEE3"},ear2);
+mk("circle",{cx:RX+15,cy:RY-22,r:1.3,fill:"#3A342C"},rabBody);
+
+/* ---------- 前景草葉 ---------- */
+var Lfg=document.getElementById("L_fg");
+var blades=[];
+for(var i=0;i<30;i++){
+  var x=R(-20,560), y=R(930,985), h=R(26,64);
+  var p=mk("path",{d:"M"+x+","+y+" q"+R(-6,6)+","+(-h*0.55)+" "+R(-14,14)+","+(-h),
+    stroke:(rnd()<0.5?"#33552A":"#456B33"),"stroke-width":R(2,3.6),fill:"none",
+    "stroke-linecap":"round",opacity:R(0.55,0.9)},Lfg);
+  blades.push({el:p,x:x,y:y,ph:R(0,6.28)});
+}
+
+/* ---------- 浮塵 ---------- */
+var mo=document.getElementById("motes"); var motes=[];
+for(var i=0;i<14;i++){
+  var d=document.createElement("div"); d.className="mote";
+  var sz=R(2,5.5); d.style.width=sz+"px"; d.style.height=sz+"px";
+  mo.appendChild(d); motes.push({el:d,x:R(0,540),y:R(0,960),sp:R(7,18),ph:R(0,6.28)});
+}
+
+/* ============================================================
+   seek(t)：純函式，同一個 t 一定畫出同一畫面
+   ============================================================ */
+var DUR=20;
+var SEGS=[[0.4,"c1"],[4.4,"c2"],[8.4,"c3"],[12.4,"c4"],[16.4,"c5"]];
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function ease(x){return x<0?0:x>1?1:1-Math.pow(1-x,3)}
+function easeIO(x){x=clamp(x,0,1);return x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2}
+/* 以 (fx,fy) 為中心縮放 k 倍的 transform 字串 */
+function cam(fx,fy,k,dx,dy){
+  return "translate("+(fx*(1-k)+(dx||0))+","+(fy*(1-k)+(dy||0))+") scale("+k+")";
+}
+
+var LAYERS=[
+  ["L_sky",0.15],["L_clouds",0.20],["L_birds",0.24],["L_hills",0.38],
+  ["L_back",0.52],["L_mid",0.72],["L_band3",0.86],["L_shadow",0.94],["L_front",1.00],
+  ["L_band4",1.14],["L_tufts",1.18],["L_figure",1.22],["L_fg",1.55]
+];
+var hazeEl=document.getElementById("haze");
+
+window.seek=function(t){
+  var p=clamp(t/DUR,0,1);
+  var s=1+0.095*easeIO(p*1.05);          // 鏡頭慢推
+  var FXC=250, FYC=700;                   // 推鏡焦點：人物
+
+  /* 各層依「深度」套不同縮放 → 視差 */
+  for(var i=0;i<LAYERS.length;i++){
+    var d=LAYERS[i][1];
+    var k=1+(s-1)*d;
+    var drift=-8*p*d;                     // 輕微上移
+    document.getElementById(LAYERS[i][0]).setAttribute("transform",cam(FXC,FYC,k,0,drift));
+  }
+  hazeEl.setAttribute("transform",cam(FXC,FYC,1+(s-1)*0.62,0,-8*p*0.62));
+
+  /* 風：整排搖擺（後排小、前排大），前排每棵各自相位 */
+  var w1=Math.sin(t*0.62)*0.35+Math.sin(t*1.13+1.7)*0.18;
+  var w2=Math.sin(t*0.55+0.8)*0.55+Math.sin(t*1.02+2.4)*0.26;
+  document.getElementById("L_back").style.transformOrigin="";
+  for(var i=0;i<backRow.length;i++)
+    backRow[i].setAttribute("transform","rotate("+(w1*0.6)+" "+(-24+i*33)+" 248)");
+  for(var i=0;i<midRow.length;i++)
+    midRow[i].setAttribute("transform","rotate("+(w1*0.9+Math.sin(t*0.9+i*0.7)*0.16)+" "+(-30+i*55)+" 424)");
+  for(var i=0;i<frontRow.length;i++){
+    var a=w2*(0.8+0.35*Math.sin(i*1.9))+Math.sin(t*0.83+i*1.3)*0.32;
+    frontRow[i].setAttribute("transform","rotate("+a+" "+(-36+i*89)+" 626)");
+  }
+  /* 草地隨風 */
+  for(var q=0;q<3;q++)
+    tuftG[q].setAttribute("transform","rotate("+(w2*(0.5+q*0.45))+" 270 900)");
+  /* 前景草葉：各自搖，幅度大一點 */
+  for(var i=0;i<blades.length;i++){
+    var b=blades[i];
+    var a=Math.sin(t*1.15+b.ph)*2.6+Math.sin(t*0.47+b.ph*0.5)*1.8;
+    b.el.setAttribute("transform","rotate("+a+" "+b.x+" "+b.y+")");
+  }
+
+  /* 雲飄 */
+  for(var i=0;i<clouds.length;i++){
+    var c=clouds[i];
+    var x=((c.x+t*c.sp)%700)-80;
+    c.g.setAttribute("transform","translate("+(x-c.x)+",0)");
+  }
+  /* 鳥：中段飛過 */
+  for(var i=0;i<birds.length;i++){
+    var bd=birds[i], lt=t-4.5-bd.dl;
+    if(lt<0||lt>11){ bd.g.setAttribute("opacity",0); continue }
+    bd.g.setAttribute("opacity",clamp(Math.min(lt/0.8,(11-lt)/0.8),0,1)*0.75);
+    var bx=-40+lt*56, by=bd.y+Math.sin(lt*0.9+bd.ph)*7;
+    bd.g.setAttribute("transform","translate("+bx+","+by+") scale("+bd.sc+")"
+      +" rotate("+(Math.sin(lt*3.1+bd.ph)*8)+")");
+  }
+
+  /* 人物：呼吸 + 大衣被風吹 */
+  var breathe=Math.sin(t*0.9)*0.9;
+  var coatSway=Math.sin(t*0.7+0.4)*0.85+Math.sin(t*1.31)*0.35;
+  coatG.setAttribute("transform","rotate("+coatSway+" "+FX+" "+(FY-130)+")"
+    +" translate(0,"+(breathe*0.35)+")");
+  headG.setAttribute("transform","rotate("+(coatSway*1.25+Math.sin(t*0.33)*0.8)+" "+FX+" "+(FY-138)+")"
+    +" translate(0,"+(breathe*0.5)+")");
+
+  /* 兔子：呼吸 + 定時抽動耳朵 + 一次小跳 */
+  var tw=0, TW=[2.6,6.1,10.4,14.2,18.1];
+  for(var i=0;i<TW.length;i++){
+    var dt=t-TW[i];
+    if(dt>0&&dt<0.55) tw=Math.max(tw,Math.sin(dt/0.55*Math.PI)*Math.abs(Math.sin(dt*26)));
+  }
+  ear1.setAttribute("transform","rotate("+(-16*tw)+" "+(RX+8)+" "+(RY-25)+")");
+  ear2.setAttribute("transform","rotate("+(9*tw)+" "+(RX+13.5)+" "+(RY-26)+")");
+  var hop=0, hd=t-12.9;
+  if(hd>0&&hd<0.62) hop=Math.sin(hd/0.62*Math.PI)*9;
+  rabBody.setAttribute("transform","translate("+(hop*0.5)+","+(-hop+Math.sin(t*1.6)*0.5)+")");
+
+  /* 字卡 */
+  for(var i=0;i<SEGS.length;i++){
+    var st=SEGS[i][0], en=(i<SEGS.length-1)?SEGS[i+1][0]:DUR+2;
+    var el=document.getElementById(SEGS[i][1]);
+    var inn=ease((t-st)/0.85);
+    var out=clamp(1-ease((t-(en-0.75))/0.6),0,1);
+    el.style.opacity=clamp(Math.min(inn,out),0,1);
+    el.style.transform="translateY("+((1-inn)*20)+"px)";
+  }
+  /* 上方壓黑：只在有字卡時出現 */
+  var anyCard=0;
+  for(var i=0;i<SEGS.length;i++)
+    anyCard=Math.max(anyCard,parseFloat(document.getElementById(SEGS[i][1]).style.opacity||0));
+  document.getElementById("scrim").style.opacity=anyCard;
+
+  /* 浮塵 */
+  for(var i=0;i<motes.length;i++){
+    var m=motes[i];
+    var y=((m.y - t*m.sp)%1000+1000)%1000;
+    m.el.style.left=(m.x+Math.sin(t*0.55+m.ph)*16)+"px";
+    m.el.style.top=(y-20)+"px";
+    m.el.style.opacity=(0.22+0.4*Math.abs(Math.sin(t*0.8+m.ph)));
+  }
+
+  /* 開場淡入 / 結尾淡出 */
+  var fade=Math.min(ease(t/0.9), clamp(1-ease((t-(DUR-0.9))/0.9),0,1));
+  document.getElementById("stage").style.opacity=clamp(fade,0,1);
+};
+window.seek(0);
+</script>
+</body>
+</html>
