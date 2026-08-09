@@ -33,15 +33,15 @@ im = Image.open(RAW).convert("RGB")
 W, H = im.size                                  # 1080 x 1920
 d = ImageDraw.Draw(im, "RGBA")
 
-# 頂部柔和壓黑，讓奶油字站得住（漸層，不要硬邊）
-for y in range(0, 900):
-    a = int(120 * (1 - y / 900) ** 1.4)
-    d.line([(0, y), (W, y)], fill=(16, 24, 18, a))
+# 晨光天空是亮的：壓黑只會把它弄髒。改用極淡的暖色提亮，配深色字
+for y in range(0, 760):
+    a = int(46 * (1 - y / 760) ** 1.2)
+    d.line([(0, y), (W, y)], fill=(255, 244, 224, a))
 
 title = ImageFont.truetype(FONT, 92, index=0)
 sub   = ImageFont.truetype(FONT, 40, index=0)
 
-def center(text, font, y, fill, shadow=(18,26,20,190)):
+def center(text, font, y, fill, shadow=(255,248,232,170)):
     x0, y0, x1, y1 = d.textbbox((0, 0), text, font=font)
     x = (W - (x1 - x0)) // 2 - x0
     for dx, dy in ((0,4),(3,3),(-3,3)):
@@ -50,9 +50,9 @@ def center(text, font, y, fill, shadow=(18,26,20,190)):
     return y + (y1 - y0)
 
 y = 300
-y = center("她住在一座", title, y, (244,234,218))
-y = center("修剪整齊的花園裡", title, y + 34, (233,168,123))
-center("《樹牆》・一個關於走出去的故事", sub, y + 62, (236,228,212))
+y = center("她住在一座", title, y, (44,58,42))
+y = center("修剪整齊的花園裡", title, y + 34, (172,74,40))
+center("《樹牆》・一個關於走出去的故事", sub, y + 62, (86,98,78))
 
 # 人物頭頂大約在 y≈1390（1920 高），標題結束在 y≈700，完全不壓臉
 im.save(OUT, "JPEG", quality=92)
