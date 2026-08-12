@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:540px;height:960px;overflow:hidden;background:#F4E8D8}
+body{font-family:"Noto Serif CJK TC",serif;position:relative}
+#bg{position:absolute;left:-30px;top:-40px;width:600px;height:1060px;object-fit:cover}
+#veil{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(250,242,228,.55) 0%, rgba(250,242,228,.12) 34%, rgba(250,242,228,0) 55%)}
+.spark{position:absolute;border-radius:50%;background:#FFF6DF;filter:blur(1.5px)}
+#bunny{position:absolute;left:56%;bottom:34px;width:266px;margin-left:-133px;transform-origin:50% 90%}
+#bunny img{width:100%;filter:drop-shadow(0 10px 18px rgba(120,80,40,.25))}
+/* text cards */
+.card{position:absolute;left:40px;right:40px;top:120px;text-align:center;opacity:0}
+.blob{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:120%;height:190%;background:radial-gradient(ellipse at center, rgba(255,250,238,.92) 0%, rgba(255,250,238,.75) 55%, rgba(255,250,238,0) 78%);z-index:-1}
+.t{font-size:33px;font-weight:700;color:#6B4A33;line-height:1.5;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.t .hi{color:#C96F4A}
+.d{font-size:17px;color:#94765C;margin-top:10px;letter-spacing:.05em}
+#wm{position:absolute;bottom:22px;width:100%;text-align:center;color:rgba(120,90,60,.75);font-size:14px;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<img id="bg" src="wc_bg.png">
+<div id="veil"></div>
+<div id="sparks"></div>
+<div id="bunny"><img src="wc_bunny.png"></div>
+
+<div class="card" id="c1"><div class="blob"></div>
+  <div class="t">水彩童話風<span class="hi">，也做得出來</span></div>
+  <div class="d">素材用 AI 生圖，動態交給網頁</div>
+</div>
+<div class="card" id="c2"><div class="blob"></div>
+  <div class="t">背景是<span class="hi">一張水彩圖</span></div>
+  <div class="d">鏡頭慢慢推進，畫面就活了</div>
+</div>
+<div class="card" id="c3"><div class="blob"></div>
+  <div class="t">角色去背<span class="hi">疊上來</span></div>
+  <div class="d">輕輕搖擺，跟你揮揮手</div>
+</div>
+<div class="card" id="c4"><div class="blob"></div>
+  <div class="t">加上柔光與<span class="hi">飄浮光點</span></div>
+  <div class="d">流程不變：網頁、逐格截圖、ffmpeg</div>
+</div>
+<div class="card" id="c5"><div class="blob"></div>
+  <div class="t">想學這套<span class="hi">影片魔法</span>？</div>
+  <div class="d">追蹤 @aibunny.makes，下集教你</div>
+</div>
+
+<div id="wm">@aibunny.makes</div>
+
+<script>
+(function(){
+  var sp=document.getElementById("sparks");
+  for(var i=0;i<16;i++){
+    var s=document.createElement("div");s.className="spark";s.id="sp"+i;
+    var sz=3+(i%4)*2;
+    s.style.width=sz+"px";s.style.height=sz+"px";
+    sp.appendChild(s);
+  }
+})();
+var SEGS=[[0,"c1"],[4.5,"c2"],[9.5,"c3"],[14.5,"c4"],[19.5,"c5"]];
+var DUR=25;
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function ease(x){return x<0?0:x>1?1:1-Math.pow(1-x,3)}
+window.seek=function(t){
+  /* ken burns */
+  var p=t/DUR;
+  var bg=document.getElementById("bg");
+  bg.style.transform="scale("+(1.02+0.10*p)+") translateY("+(-14*p)+"px)";
+  /* bunny: rise in at 8s, sway, wave via slight rotate */
+  var b=document.getElementById("bunny");
+  var rise=ease((t-8.5)/1.4);
+  var sway=Math.sin(t*1.4)*2.2;
+  var bob=Math.sin(t*2.1)*5;
+  b.style.opacity=rise;
+  b.style.transform="translateY("+((1-rise)*160+bob)+"px) rotate("+(sway*rise)+"deg)";
+  /* cards */
+  for(var i=0;i<SEGS.length;i++){
+    var start=SEGS[i][0];
+    var end=(i<SEGS.length-1)?SEGS[i+1][0]:999;
+    var el=document.getElementById(SEGS[i][1]);
+    var o=Math.min(ease((t-start)/0.7), (end>900)?1:clamp(1-ease((t-(end-0.5))/0.5),0,1));
+    el.style.opacity=clamp(o,0,1);
+    el.style.transform="translateY("+((1-ease((t-start)/0.7))*24)+"px)";
+  }
+  /* sparks float */
+  for(i=0;i<16;i++){
+    var s=document.getElementById("sp"+i);
+    var x=(i*67)%500+20;
+    var y=((i*131)%820) - ((t*14)+(i*9))%880 + 880;
+    s.style.left=(x+Math.sin(t*0.8+i)*14)+"px";
+    s.style.top=(y%920)+"px";
+    s.style.opacity=0.25+0.45*Math.abs(Math.sin(t*0.9+i*1.7));
+  }
+};
+window.seek(0);
+</script>
+</body>
+</html>

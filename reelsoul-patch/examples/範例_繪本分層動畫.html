@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:540px;height:960px;overflow:hidden;background:#0E1410}
+body{font-family:"Noto Serif CJK TC",serif;position:relative}
+#stage{position:absolute;inset:0;overflow:hidden}
+#svg{position:absolute;left:0;top:0;width:540px;height:960px;display:block}
+
+#grainA{position:absolute;inset:-20px;background:url(grain.png) repeat;
+        opacity:.20;mix-blend-mode:overlay;pointer-events:none}
+#grainB{position:absolute;inset:-20px;background:url(grain.png) repeat;
+        background-size:150px 150px;opacity:.10;mix-blend-mode:multiply;pointer-events:none}
+#paper{position:absolute;inset:0;background:rgba(240,228,205,.10);mix-blend-mode:multiply;pointer-events:none}
+#vig{position:absolute;inset:0;pointer-events:none;
+     background:radial-gradient(ellipse 82% 68% at 50% 46%, rgba(0,0,0,0) 46%, rgba(34,30,20,.28) 100%)}
+#flash{position:absolute;inset:0;pointer-events:none;background:#FFF6E4;opacity:0}
+
+.mote{position:absolute;border-radius:50%;background:#FFF3D8;filter:blur(1.4px);pointer-events:none}
+
+/* 字卡：上緣壓到 15%，避開 IG 頂部那條 */
+#scrim{position:absolute;left:0;top:0;width:540px;height:470px;pointer-events:none;opacity:0;
+       background:linear-gradient(to bottom, rgba(14,22,16,.44) 0%, rgba(14,22,16,.32) 36%,
+                  rgba(14,22,16,.15) 68%, rgba(14,22,16,0) 100%)}
+.card{position:absolute;left:46px;right:46px;top:144px;text-align:center;opacity:0}
+.t{font-size:31px;font-weight:700;color:#F4EADA;line-height:1.62;letter-spacing:.03em;
+   text-shadow:0 2px 12px rgba(16,24,18,.7)}
+.t .hi{color:#E9A87B}
+#wm{position:absolute;bottom:26px;width:100%;text-align:center;
+    color:rgba(244,234,218,.55);font-size:13px;letter-spacing:.14em}
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="svg" viewBox="0 0 540 960">
+    <defs>
+      <linearGradient id="skyGarden" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#AFC7CF"/><stop offset="100%" stop-color="#DCDFCC"/>
+      </linearGradient>
+      <linearGradient id="hazeG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#E6EADC" stop-opacity=".60"/>
+        <stop offset="100%" stop-color="#E6EADC" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="skyDawn" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#7E9BB4"/>
+        <stop offset="38%" stop-color="#C9B49E"/>
+        <stop offset="70%" stop-color="#E9B98A"/>
+        <stop offset="100%" stop-color="#F5D9A8"/>
+      </linearGradient>
+      <linearGradient id="skyOpen" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#9DBBC9"/>
+        <stop offset="60%" stop-color="#D6DCCF"/>
+        <stop offset="100%" stop-color="#EDE3C8"/>
+      </linearGradient>
+      <radialGradient id="glowG">
+        <stop offset="0%"   stop-color="#FFFBEE" stop-opacity="1"/>
+        <stop offset="22%"  stop-color="#FFE9AE" stop-opacity=".95"/>
+        <stop offset="52%"  stop-color="#F2B970" stop-opacity=".45"/>
+        <stop offset="100%" stop-color="#E09A55" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="gapG">
+        <stop offset="0%"   stop-color="#FFF4D8" stop-opacity=".95"/>
+        <stop offset="45%"  stop-color="#F3D9A0" stop-opacity=".45"/>
+        <stop offset="100%" stop-color="#EBC98C" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="shaftG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#FFF1CE" stop-opacity=".55"/>
+        <stop offset="100%" stop-color="#FFF1CE" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="seaG" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8FA6B4"/><stop offset="100%" stop-color="#6E8798"/>
+      </linearGradient>
+    </defs>
+    <g id="world"></g>
+  </svg>
+
+  <div id="paper"></div><div id="grainB"></div><div id="grainA"></div>
+  <div id="vig"></div><div id="motes"></div><div id="flash"></div>
+  <div id="scrim"></div>
+  <div id="cards"></div>
+  <div id="wm">@aibunny.makes</div>
+</div>
+
+<script>
+/* ── 固定亂數（分段渲染會重載頁面，場景必須每次都長一樣） ───────────── */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+var rnd=mulberry32(20260809);
+function R(a,b){return a+(b-a)*rnd()}
+var NS="http://www.w3.org/2000/svg";
+function mk(tag,at,p){var e=document.createElementNS(NS,tag);for(var k in at)e.setAttribute(k,at[k]);
+  if(p)p.appendChild(e);return e}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function ease(x){return x<0?0:x>1?1:1-Math.pow(1-x,3)}
+function easeIO(x){x=clamp(x,0,1);return x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2}
+function cam(fx,fy,k,dx,dy){return "translate("+(fx*(1-k)+(dx||0))+","+(fy*(1-k)+(dy||0))+") scale("+k+")"}
+
+/* ── 共用零件 ─────────────────────────────────────────────────────── */
+function bushPath(cx,by,w,h){
+  return "M"+(cx-w)+","+by+
+    " C"+(cx-w*1.02)+","+(by-h*0.54)+" "+(cx-w*0.78)+","+(by-h*0.92)+" "+cx+","+(by-h)+
+    " C"+(cx+w*0.78)+","+(by-h*0.92)+" "+(cx+w*1.02)+","+(by-h*0.54)+" "+(cx+w)+","+by+" Z";
+}
+function makeBush(p,cx,by,w,h,base,lite,dark){
+  var g=mk("g",{},p);
+  mk("ellipse",{cx:cx,cy:by+1,rx:w*1.02,ry:w*0.20,fill:dark,opacity:.30},g);
+  mk("path",{d:bushPath(cx,by,w,h),fill:base},g);
+  var cid="c"+Math.floor(rnd()*1e9);
+  mk("path",{d:bushPath(cx,by,w,h)},mk("clipPath",{id:cid},g));
+  var inn=mk("g",{"clip-path":"url(#"+cid+")"},g);
+  mk("ellipse",{cx:cx-w*0.34,cy:by-h*0.60,rx:w*0.60,ry:h*0.44,fill:lite,opacity:.34},inn);
+  mk("ellipse",{cx:cx+w*0.82,cy:by-h*0.46,rx:w*0.78,ry:h*0.58,fill:dark,opacity:.32},inn);
+  mk("ellipse",{cx:cx-w*0.16,cy:by-h*0.88,rx:w*0.40,ry:h*0.08,fill:lite,opacity:.34},inn);
+  var n=Math.max(6,Math.round(h/20));
+  for(var i=0;i<n;i++){
+    var rx=R(w*0.14,w*0.30),t=R(0.05,0.96),yy=by-h*t;
+    var sp=w*(1-Math.pow(t,2.2))*0.86;
+    mk("ellipse",{cx:cx+R(-sp,sp),cy:yy,rx:rx,ry:rx*R(0.55,0.85),
+      fill:(rnd()<0.45?dark:lite),opacity:R(0.10,0.26)},inn);
+  }
+  return g;
+}
+function bushRow(p,by,w,h,step,x0,x1,base,lite,dark,jit){
+  var a=[];
+  for(var x=x0;x<x1;x+=step)
+    a.push(makeBush(p,x+R(-step*0.18,step*0.18),by+R(-5,5),
+      w*R(0.86,1.18),h*R(1-jit,1+jit),base,lite,dark));
+  return a;
+}
+function grassStrokes(p,x0,x1,y0,y1,n,cols,sc){
+  for(var i=0;i<n;i++){
+    var y=R(y0,y1),x=R(x0,x1),len=R(4,9)*sc*(0.5+(y-y0)/Math.max(1,(y1-y0)));
+    mk("path",{d:"M"+x+","+y+" q"+R(-2,2)*sc+","+(-len*0.6)+" "+R(-3.5,3.5)*sc+","+(-len),
+      stroke:cols[rnd()<0.5?0:1],"stroke-width":R(1.1,2.3)*sc,fill:"none",
+      opacity:R(0.28,0.58),"stroke-linecap":"round"},p);
+  }
+}
+/* 人物：本地座標，腳在 (0,0)，身高約 168 */
+function makeFigure(p,x,by,s){
+  var g=mk("g",{transform:"translate("+x+","+by+") scale("+s+")"},p);
+  mk("ellipse",{cx:4,cy:3,rx:30,ry:7,fill:"#28421F",opacity:.34},g);
+  var coat=mk("g",{},g);
+  /* 肩線：近景時沒有肩膀會變成一根黑柱 */
+  mk("path",{d:"M-17,-133 C-13,-141 13,-141 17,-133 C24,-128 27,-118 28,-108 "+
+    "C30,-60 31,-40 33,-2 L-33,-2 C-31,-40 -30,-60 -28,-108 C-27,-118 -24,-128 -17,-133 Z",
+    fill:"#14161B"},coat);
+  mk("path",{d:"M-17,-133 C-23,-127 -25,-118 -26,-108 C-27,-70 -27,-56 -28,-20 L-16,-18 "+
+    "C-16,-56 -15,-100 -13,-118 C-12,-127 -10,-131 -7,-134 Z",fill:"#23262E",opacity:.85},coat);
+  mk("path",{d:"M-6,-126 C-7,-84 -7,-46 -8,-6",stroke:"#0D0F13","stroke-width":1.6,
+    fill:"none",opacity:.5},coat);
+  mk("path",{d:"M13,-124 C14,-84 15,-46 16,-6",stroke:"#0D0F13","stroke-width":1.4,
+    fill:"none",opacity:.38},coat);
+  mk("ellipse",{cx:-27,cy:-74,rx:4,ry:5.5,fill:"#E0AB92"},coat);
+  mk("ellipse",{cx:27,cy:-74,rx:4,ry:5.5,fill:"#E0AB92"},coat);
+  mk("path",{d:"M-13,-137 q13,8 26,0 q-4,7 -13,7.5 q-9,-.5 -13,-7.5 Z",fill:"#E4D8BE",opacity:.9},coat);
+  var head=mk("g",{},g);
+  mk("rect",{x:-4.5,y:-150,width:9,height:13,fill:"#DFA98F"},head);
+  mk("ellipse",{cx:0,cy:-139,rx:6,ry:3.5,fill:"#C08D75",opacity:.55},head);
+  mk("circle",{cx:0,cy:-157,r:13.5,fill:"#E8B79E"},head);
+  mk("path",{d:"M-15.5,-155 a15.5,16 0 0 1 31,0 q1,9 -2,12.5 q-13.5,5 -27,0 q-3,-3.5 -2,-12.5 Z",
+    fill:"#C25A3A"},head);
+  mk("path",{d:"M-14,-149 q14,6.5 28,0 q-1.5,7.5 -4,9.5 q-10,3 -20,0 q-2.5,-2 -4,-9.5 Z",
+    fill:"#A8452C",opacity:.55},head);
+  /* 髮絲：近景才看得出來，遠景自然消失 */
+  mk("path",{d:"M-11,-166 C-6,-172 5,-173 11,-167",stroke:"#DA7A56","stroke-width":2.2,
+    fill:"none",opacity:.55,"stroke-linecap":"round"},head);
+  mk("path",{d:"M-13,-158 C-9,-166 -2,-170 4,-170",stroke:"#A8452C","stroke-width":1.5,
+    fill:"none",opacity:.45,"stroke-linecap":"round"},head);
+  mk("path",{d:"M13,-158 C10,-166 4,-170 -1,-170",stroke:"#A8452C","stroke-width":1.4,
+    fill:"none",opacity:.35,"stroke-linecap":"round"},head);
+  return {g:g,coat:coat,head:head,x:x,by:by,s:s};
+}
+/* 兔子：本地座標，腳在 (0,0)，高約 40 */
+function makeRabbit(p,x,by,s){
+  var g=mk("g",{transform:"translate("+x+","+by+") scale("+s+")"},p);
+  mk("ellipse",{cx:0,cy:2,rx:17,ry:4,fill:"#28421F",opacity:.30},g);
+  var body=mk("g",{},g);
+  mk("ellipse",{cx:-3,cy:-11,rx:15,ry:10.5,fill:"#F3EEE3"},body);
+  mk("ellipse",{cx:-15,cy:-13,rx:4.6,ry:4.6,fill:"#E6DFD1"},body);
+  var head=mk("g",{},body);
+  var e1=mk("g",{},head),e2=mk("g",{},head);
+  mk("ellipse",{cx:11,cy:-21,rx:8,ry:7.5,fill:"#F6F2E9"},head);
+  mk("ellipse",{cx:8,cy:-33,rx:2.7,ry:8.5,fill:"#F3EEE3"},e1);
+  mk("ellipse",{cx:13.5,cy:-34,rx:2.7,ry:9,fill:"#F3EEE3"},e2);
+  mk("circle",{cx:15,cy:-22,r:1.3,fill:"#3A342C"},head);
+  return {g:g,body:body,head:head,e1:e1,e2:e2};
+}
+function earTwitch(t,times){
+  var v=0;
+  for(var i=0;i<times.length;i++){var d=t-times[i];
+    if(d>0&&d<0.55) v=Math.max(v,Math.sin(d/0.55*Math.PI)*Math.abs(Math.sin(d*26)));}
+  return v;
+}
+function wind(t,a,b){return Math.sin(t*0.55+a)*b+Math.sin(t*1.02+a*2.3)*b*0.46}
+
+/* ── 場景 ─────────────────────────────────────────────────────────── */
+var W=document.getElementById("world");
+var S={};                     // 場景群組
+function scene(id){var g=mk("g",{id:id,display:"none"},W);S[id]=g;return g}
+
+/* S1 遠景：密不透風的樹牆，她很小 */
+var g1=scene("S1");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"url(#skyGarden)"},g1);
+mk("rect",{x:-60,y:150,width:660,height:900,fill:"#77985A"},g1);
+var g1b1=mk("g",{},g1), g1b2=mk("g",{},g1);
+var r1a=bushRow(g1b1,250,26,92,30,-22,610,"#587A48","#72935A","#3E5C38",0.26);
+mk("rect",{x:-60,y:110,width:660,height:330,fill:"url(#hazeG)"},g1);
+var r1b=bushRow(g1b2,414,41,152,50,-28,610,"#3E6039","#587B45","#2A4630",0.22);
+mk("path",{d:"M-60,516 C90,504 200,524 320,512 C420,502 510,518 600,508 L600,1020 L-60,1020 Z",fill:"#66914B"},g1);
+var g1b3=mk("g",{},g1);
+var r1c=bushRow(g1b3,606,64,238,80,-34,610,"#2A4A2C","#446A38","#193020",0.28);
+mk("path",{d:"M-60,592 C120,586 260,600 400,592 C480,588 550,596 600,592 L600,650 L-60,650 Z",fill:"#20401F",opacity:.20},g1);
+mk("path",{d:"M-60,706 C110,692 230,714 350,700 C450,689 530,706 600,698 L600,1020 L-60,1020 Z",fill:"#75A253"},g1);
+var g1g=mk("g",{},g1); grassStrokes(g1g,-24,566,640,958,300,["#42682F","#9AC272"],1);
+var f1=makeFigure(g1,236,842,0.78);
+var b1=makeRabbit(g1,286,856,0.7);
+
+/* S2 通道：兩道樹牆往深處收斂 */
+var g2=scene("S2");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"#4E6E42"},g2);
+mk("rect",{x:-60,y:-60,width:660,height:520,fill:"url(#skyGarden)"},g2);
+mk("path",{d:"M230,420 L-120,1020 L660,1020 L310,420 Z",fill:"#6E9450"},g2);
+mk("ellipse",{cx:270,cy:424,rx:120,ry:60,fill:"#DCE6D2",opacity:.55},g2);
+for(var i=0;i<10;i++){
+  var f=i/9, sc=0.13+0.87*Math.pow(f,1.75);
+  var by=418+566*Math.pow(f,1.45), gap=34+318*Math.pow(f,1.35);
+  makeBush(g2,270-gap,by,62*sc,320*sc,"#335534","#4C6E3E","#1C3322");
+  makeBush(g2,270+gap,by,62*sc,320*sc,"#2C4B2E","#43633A","#182C1D");
+}
+var g2g=mk("g",{},g2); grassStrokes(g2g,60,480,470,980,150,["#4A7135","#8FB768"],0.9);
+var f2=makeFigure(g2,268,452,0.15);
+mk("rect",{x:-60,y:380,width:660,height:180,fill:"url(#hazeG)"},g2);
+
+/* S3 近景：她的背影 */
+var g3=scene("S3");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"#6E9450"},g3);
+var g3b=mk("g",{},g3);
+bushRow(g3b,700,150,720,190,-120,700,"#335534","#4A6C3C","#1C3322",0.14);
+mk("path",{d:"M-60,690 C140,676 300,700 440,688 L600,694 L600,1020 L-60,1020 Z",fill:"#75A253"},g3);
+var g3g=mk("g",{},g3); grassStrokes(g3g,-40,580,700,980,180,["#42682F","#9AC272"],1.5);
+var f3=makeFigure(g3,268,1010,2.55);
+
+/* S4 兔子出現 */
+var g4=scene("S4");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"#6E9450"},g4);
+mk("rect",{x:-60,y:-60,width:660,height:230,fill:"url(#skyGarden)"},g4);
+var g4b=mk("g",{},g4);
+bushRow(g4b,300,44,190,58,-30,610,"#3E6039","#587B45","#2A4630",0.2);
+bushRow(g4b,640,96,360,120,-50,650,"#2A4A2C","#446A38","#193020",0.22);
+mk("path",{d:"M-60,660 C130,646 260,668 390,654 L600,660 L600,1020 L-60,1020 Z",fill:"#75A253"},g4);
+mk("path",{d:"M-60,838 C140,826 280,846 410,834 L600,838 L600,1020 L-60,1020 Z",fill:"#84B15E"},g4);
+var g4g=mk("g",{},g4); grassStrokes(g4g,-30,580,668,958,240,["#42682F","#9AC272"],1.2);
+var f4=makeFigure(g4,170,858,1.28);
+var b4=makeRabbit(g4,372,884,1.55);
+
+/* S5 兔子往前跳，回頭看 */
+var g5=scene("S5");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"#7AA35A"},g5);
+mk("rect",{x:-60,y:-60,width:660,height:130,fill:"url(#skyGarden)"},g5);
+var g5b=mk("g",{},g5);
+bushRow(g5b,352,74,252,92,-50,650,"#335534","#4A6C3C","#1C3322",0.18);
+mk("path",{d:"M-60,360 C150,346 300,370 440,356 L600,362 L600,1020 L-60,1020 Z",fill:"#77A254"},g5);
+var g5m=mk("g",{},g5); grassStrokes(g5m,-40,600,370,600,120,["#4A7135","#93BC6C"],1);
+var f5=makeFigure(g5,142,470,0.58);
+mk("path",{d:"M-60,600 C160,586 320,610 460,596 L600,602 L600,1020 L-60,1020 Z",fill:"#88B662"},g5);
+var g5g=mk("g",{},g5); grassStrokes(g5g,-40,600,610,900,260,["#4A7135","#A6CC7C"],2.2);
+var b5=makeRabbit(g5,190,880,3.1);
+var g5f=mk("g",{},g5); grassStrokes(g5f,-40,600,900,1010,110,["#3B5F2A","#7FA85C"],3.6);
+
+/* S6 她跟上去了 */
+var g6=scene("S6");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"#6E9450"},g6);
+mk("rect",{x:-60,y:-60,width:660,height:200,fill:"url(#skyGarden)"},g6);
+var g6b=mk("g",{},g6);
+bushRow(g6b,560,88,420,112,-50,650,"#2C4C2E","#456B39","#1A3020",0.2);
+mk("path",{d:"M-60,580 C150,566 300,590 440,576 L600,582 L600,1020 L-60,1020 Z",fill:"#75A253"},g6);
+mk("path",{d:"M-60,800 C150,788 300,810 440,798 L600,802 L600,1020 L-60,1020 Z",fill:"#85B25F"},g6);
+var g6g=mk("g",{},g6); grassStrokes(g6g,-30,580,590,958,240,["#42682F","#9AC272"],1.3);
+var b6=makeRabbit(g6,344,826,0.95);
+var f6=makeFigure(g6,252,930,1.85);
+var g6f=mk("g",{},g6); grassStrokes(g6f,-40,600,930,1010,90,["#3B5F2A","#7FA85C"],2.4);
+
+/* S7 樹牆有一道縫 */
+var g7=scene("S7");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"#14260F"},g7);
+/* 縫：亮核 → 光暈 → 灑在地上的光帶，三層疊出來才像光 */
+/* 牆先畫，光後畫疊在最上面 —— 反過來的話樹叢會把縫整條蓋掉 */
+var g7L=mk("g",{},g7), g7R=mk("g",{},g7);
+bushRow(g7L,1030,96,930,120,-150,172,"#162C14","#294A22","#0A150B",0.08);
+bushRow(g7R,1030,96,930,120,428,740,"#132711","#24421E","#081208",0.08);
+mk("path",{d:"M-60,946 C150,934 320,956 460,944 L600,948 L600,1020 L-60,1020 Z",fill:"#2E4820"},g7);
+var g7g=mk("g",{},g7); grassStrokes(g7g,-40,600,946,1010,80,["#25401B","#6E9450"],2.4);
+var gapGlow=mk("ellipse",{cx:300,cy:560,rx:150,ry:440,fill:"url(#gapG)"},g7);
+var gapPool=mk("ellipse",{cx:300,cy:980,rx:200,ry:52,fill:"url(#gapG)",opacity:.7},g7);
+var shaft=mk("path",{d:"M278,300 L322,300 L472,1020 L128,1020 Z",fill:"url(#shaftG)"},g7);
+var gapCore=mk("path",{d:"M282,150 q18,-30 36,0 L330,1000 L270,1000 Z",fill:"#FFF6DE",opacity:.95},g7);
+
+/* S8 外面沒有路 */
+var g8=scene("S8");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"url(#skyOpen)"},g8);
+var g8c=mk("g",{},g8);
+for(var i=0;i<6;i++){
+  var cg=mk("g",{},g8c), bx=R(-60,560), by=R(60,330), cs=R(0.8,1.7);
+  for(var j=0;j<4;j++)
+    mk("ellipse",{cx:bx+j*24*cs+R(-8,8),cy:by+R(-6,6),rx:R(22,40)*cs,ry:R(9,15)*cs,
+      fill:"#F6F3E7",opacity:R(0.4,0.7)},cg);
+}
+mk("path",{d:"M-60,486 C90,462 210,492 340,472 C440,456 530,478 600,466 L600,1020 L-60,1020 Z",fill:"#93AF77"},g8);
+mk("path",{d:"M-60,556 C120,534 260,566 390,546 C470,534 540,552 600,544 L600,1020 L-60,1020 Z",fill:"#7DA05E"},g8);
+mk("path",{d:"M-60,676 C140,652 300,686 430,664 L600,656 L600,1020 L-60,1020 Z",fill:"#6B9550"},g8);
+mk("path",{d:"M-60,838 C160,816 320,848 450,828 L600,822 L600,1020 L-60,1020 Z",fill:"#7CA85C"},g8);
+var g8g=mk("g",{},g8); grassStrokes(g8g,-30,580,690,958,260,["#4A7135","#A6CC7C"],1.2);
+var f8=makeFigure(g8,244,844,0.92);
+var b8=makeRabbit(g8,306,864,0.8);
+/* 身後樹牆的頂緣，剛穿出來 */
+var g8h=mk("g",{},g8);
+bushRow(g8h,1060,80,180,100,-60,660,"#25431F","#3A5B2C","#142616",0.16);
+
+/* S9 坡上，風很大 */
+var g9=scene("S9");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"url(#skyOpen)"},g9);
+var g9c=mk("g",{},g9);
+for(var i=0;i<5;i++){
+  var cg=mk("g",{},g9c), bx=R(-80,560), by=R(50,280), cs=R(1.0,2.0);
+  for(var j=0;j<4;j++)
+    mk("ellipse",{cx:bx+j*26*cs+R(-8,8),cy:by+R(-7,7),rx:R(24,44)*cs,ry:R(9,16)*cs,
+      fill:"#F4F1E4",opacity:R(0.35,0.62)},cg);
+}
+mk("path",{d:"M-60,470 C120,436 280,478 420,450 L600,436 L600,1020 L-60,1020 Z",fill:"#8FAC74"},g9);
+mk("path",{d:"M-60,596 C150,552 320,606 460,570 L600,556 L600,1020 L-60,1020 Z",fill:"#77A057"},g9);
+mk("path",{d:"M-60,790 C170,742 340,800 470,764 L600,752 L600,1020 L-60,1020 Z",fill:"#87B364"},g9);
+var g9g=mk("g",{},g9); grassStrokes(g9g,-30,580,610,958,300,["#4A7135","#A6CC7C"],1.5);
+var f9=makeFigure(g9,244,880,1.86);
+var g9f=mk("g",{},g9), blades9=[];
+for(var i=0;i<34;i++){
+  var x=R(-20,560),y=R(930,995),h=R(30,74);
+  blades9.push({el:mk("path",{d:"M"+x+","+y+" q"+R(-7,7)+","+(-h*0.55)+" "+R(-16,16)+","+(-h),
+    stroke:(rnd()<0.5?"#33552A":"#456B33"),"stroke-width":R(2,3.8),fill:"none",
+    "stroke-linecap":"round",opacity:R(0.55,0.9)},g9f),x:x,y:y,ph:R(0,6.28)});
+}
+
+/* S10 遠處是海，太陽升起 */
+var g10=scene("S10");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"url(#skyDawn)"},g10);
+var sunGlow=mk("circle",{cx:322,cy:436,r:200,fill:"url(#glowG)",opacity:.85},g10);
+var sunDisc=mk("circle",{cx:322,cy:436,r:40,fill:"#FFEFC4"},g10);
+mk("rect",{x:-60,y:436,width:660,height:146,fill:"url(#seaG)"},g10);
+/* 海面反光：從太陽正下方往觀眾方向散開的階梯狀光帶（隨機小點會變成雜訊） */
+var seaPath=mk("g",{},g10);
+for(var i=0;i<13;i++){
+  var yy=444+i*10.5+R(-1.6,1.6), hw=(16+i*7.2)*R(0.72,1.12), off=R(-9,9);
+  mk("rect",{x:322-hw+off,y:yy,width:hw*2,height:R(2.4,4.2),rx:1.6,
+    fill:"#F8E2B2",opacity:(0.46-i*0.022)*R(0.6,1.15)},seaPath);
+}
+for(var i=0;i<7;i++)
+  mk("rect",{x:R(-50,240),y:R(448,570),width:R(30,110),height:2.2,rx:1.1,
+    fill:"#DCE6E4",opacity:R(0.10,0.22)},seaPath);
+for(var i=0;i<7;i++)
+  mk("rect",{x:R(400,600),y:R(448,570),width:R(30,110),height:2.2,rx:1.1,
+    fill:"#DCE6E4",opacity:R(0.10,0.22)},seaPath);
+mk("rect",{x:-60,y:428,width:660,height:26,fill:"#F2DDB8",opacity:.35},g10);
+mk("path",{d:"M-60,566 C130,548 280,578 410,558 L600,552 L600,1020 L-60,1020 Z",fill:"#6F8E63"},g10);
+mk("rect",{x:-60,y:552,width:660,height:34,fill:"url(#hazeG)",opacity:.7},g10);
+mk("path",{d:"M-60,660 C150,636 310,672 440,648 L600,642 L600,1020 L-60,1020 Z",fill:"#7CA062"},g10);
+mk("path",{d:"M-60,830 C170,806 330,842 460,818 L600,812 L600,1020 L-60,1020 Z",fill:"#8AAF66"},g10);
+var g10g=mk("g",{},g10); grassStrokes(g10g,-30,580,690,958,200,["#4F7538","#AFCF84"],1.2);
+var f10=makeFigure(g10,226,876,0.86);
+var b10=makeRabbit(g10,282,892,0.74);
+
+/* S11 光落在掌心 */
+var g11=scene("S11");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"url(#skyDawn)"},g11);
+mk("ellipse",{cx:280,cy:600,rx:420,ry:300,fill:"#E9C08C",opacity:.28},g11);
+mk("rect",{x:-60,y:604,width:660,height:74,fill:"url(#seaG)",opacity:.85},g11);
+mk("rect",{x:-60,y:598,width:660,height:20,fill:"#F2DDB8",opacity:.32},g11);
+mk("path",{d:"M-60,668 C150,652 320,684 450,664 L600,658 L600,1020 L-60,1020 Z",fill:"#7B9C63",opacity:.92},g11);
+mk("path",{d:"M-60,800 C160,780 330,812 460,792 L600,786 L600,1020 L-60,1020 Z",fill:"#89A96C",opacity:.92},g11);
+var g11g=mk("g",{},g11); grassStrokes(g11g,-40,600,700,1000,150,["#55784A","#A8C489"],1.4);
+/* 手：平塗風不要畫解剖，用「碗 + 五根圓角條」最好認 */
+var PX=306;
+/* 整隻手斜過來，手指收攏 —— 手指張太開會變成「打招呼」而不是「捧著」 */
+var handG=mk("g",{transform:"translate(0,-130) translate(300,900) rotate(-10) scale(1.28) translate(-300,-900)"},g11);
+mk("path",{d:"M92,1080 Q190,1000 280,946",stroke:"#14161B","stroke-width":136,
+  fill:"none","stroke-linecap":"round"},handG);
+mk("path",{d:"M120,1076 Q198,1010 268,962",stroke:"#23262E","stroke-width":48,
+  fill:"none","stroke-linecap":"round",opacity:.7},handG);
+mk("rect",{x:252,y:900,width:92,height:20,rx:10,fill:"#E4D8BE",opacity:.9,
+  transform:"rotate(-16 298 910)"},handG);                                 // 袖口（貼著掌根，別轉太多）
+/* 掌心一塊，手指與拇指用同色圓角筆畫疊上去 —— 分開畫的話會散成香腸 */
+mk("path",{d:"M230,812 C230,890 266,924 302,924 C340,924 376,890 376,812 "+
+  "C376,792 230,792 230,812 Z",fill:"#E8B79E"},handG);
+var STK=[["M252,870 L214,818",27],["M258,832 L254,782",25],["M288,826 L288,770",25],
+         ["M318,826 L320,774",25],["M346,832 L354,792",24]];
+for(var i=0;i<STK.length;i++)
+  mk("path",{d:STK[i][0],stroke:"#E8B79E","stroke-width":STK[i][1],fill:"none",
+    "stroke-linecap":"round"},handG);
+mk("ellipse",{cx:302,cy:876,rx:54,ry:24,fill:"#D79C80",opacity:.30},handG);
+/* 光那一側的邊緣打亮 */
+var STL=[["M256,812 L254,784",9],["M287,806 L288,772",9],["M317,808 L320,776",9]];
+for(var i=0;i<STL.length;i++)
+  mk("path",{d:STL[i][0],stroke:"#F6D3B6",'stroke-width':STL[i][1],fill:"none",
+    "stroke-linecap":"round",opacity:.75},handG);
+/* 光球浮在掌心上方一點，不要蓋住手 —— 蓋住就看不出是「捧著」 */
+var GY=672;
+var palmGlow=mk("circle",{cx:PX,cy:GY,r:104,fill:"url(#glowG)"},g11);
+var palmCore=mk("circle",{cx:PX,cy:GY,r:19,fill:"#FFFBEE"},g11);
+var rays=mk("g",{},g11);
+for(var i=0;i<12;i++)
+  mk("path",{d:"M"+PX+","+GY+" L"+(PX-4.5)+","+(GY-78)+" L"+(PX+4.5)+","+(GY-78)+" Z",
+    fill:"#FFE9B8",opacity:.5,transform:"rotate("+(i*30)+" "+PX+" "+GY+")"},rays);
+var sparks=[];
+for(var i=0;i<14;i++)
+  sparks.push({el:mk("circle",{cx:0,cy:0,r:R(1.4,3.4),fill:"#FFF3D2",opacity:.8},g11),
+    a:R(0,6.28),rr:R(52,118),sp:R(0.25,0.6),ph:R(0,6.28)});
+
+/* S12 拉遠，天很大 */
+var g12=scene("S12");
+mk("rect",{x:-60,y:-60,width:660,height:1080,fill:"url(#skyDawn)"},g12);
+mk("circle",{cx:340,cy:352,r:180,fill:"url(#glowG)",opacity:.62},g12);
+mk("circle",{cx:340,cy:352,r:30,fill:"#FFEFC4",opacity:.95},g12);
+var g12c=mk("g",{},g12);
+for(var i=0;i<5;i++){
+  var cg=mk("g",{},g12c), bx=R(-60,560), by=R(90,300), cs=R(0.9,1.8);
+  for(var j=0;j<4;j++)
+    mk("ellipse",{cx:bx+j*24*cs+R(-8,8),cy:by+R(-6,6),rx:R(22,42)*cs,ry:R(8,14)*cs,
+      fill:"#F7E9CE",opacity:R(0.3,0.55)},cg);
+}
+mk("rect",{x:-60,y:566,width:660,height:96,fill:"url(#seaG)",opacity:.95},g12);
+mk("rect",{x:-60,y:558,width:660,height:24,fill:"#F2DDB8",opacity:.30},g12);
+for(var i=0;i<9;i++)
+  mk("rect",{x:340-(14+i*6.5),y:574+i*9,width:(14+i*6.5)*2,height:2.8,rx:1.4,
+    fill:"#F8E2B2",opacity:0.34-i*0.026},g12);
+mk("path",{d:"M-60,652 C140,636 300,664 430,644 L600,640 L600,1020 L-60,1020 Z",fill:"#6F8E63"},g12);
+mk("rect",{x:-60,y:638,width:660,height:30,fill:"url(#hazeG)",opacity:.6},g12);
+mk("path",{d:"M-60,742 C150,722 320,756 450,734 L600,728 L600,1020 L-60,1020 Z",fill:"#7CA062"},g12);
+mk("path",{d:"M-60,868 C170,848 330,882 460,860 L600,854 L600,1020 L-60,1020 Z",fill:"#8AAF66"},g12);
+var g12g=mk("g",{},g12); grassStrokes(g12g,-30,580,760,958,160,["#4F7538","#AFCF84"],1);
+var f12=makeFigure(g12,286,890,0.44);
+var b12=makeRabbit(g12,314,898,0.38);
+var birds12=[];
+for(var i=0;i<4;i++){
+  var bg=mk("g",{},g12);
+  mk("path",{d:"M-5,0 q5,-4 5,0 q0,-4 5,0",stroke:"#5A6258","stroke-width":1.4,fill:"none",
+    "stroke-linecap":"round"},bg);
+  birds12.push({g:bg,y:R(180,330),ph:R(0,6),sc:R(0.7,1.2),dl:i*1.4});
+}
+
+/* ── 字卡 ─────────────────────────────────────────────────────────── */
+var LINES=[
+ ["她住在一座","<span class='hi'>修剪整齊</span>的花園裡"],
+ ["每一條路","都被修成<span class='hi'>一樣的形狀</span>"],
+ ["她已經很久","<span class='hi'>沒有想過外面</span>"],
+ ["直到那天","草地上多了<span class='hi'>一隻兔子</span>"],
+ ["牠沒有叫她","只是<span class='hi'>回頭看了一眼</span>"],
+ ["<span class='hi'>她跟上去了</span>"],
+ ["樹牆原來","有<span class='hi'>一道縫</span>"],
+ ["外面<span class='hi'>沒有路</span>"],
+ ["也<span class='hi'>沒有人修剪過</span>"],
+ ["她第一次看到","<span class='hi'>那麼遠</span>的地方"],
+ ["她<span class='hi'>伸出手</span>"],
+ ["然後她就","<span class='hi'>一直走下去了</span>"]
+];
+var cardsEl=document.getElementById("cards"), CARD=[];
+for(var i=0;i<LINES.length;i++){
+  var d=document.createElement("div"); d.className="card";
+  d.innerHTML="<div class='t'>"+LINES[i].join("<br>")+"</div>";
+  cardsEl.appendChild(d); CARD.push(d);
+}
+var mo=document.getElementById("motes"), motes=[];
+for(var i=0;i<16;i++){
+  var d=document.createElement("div"); d.className="mote";
+  var sz=R(2,5.5); d.style.width=sz+"px"; d.style.height=sz+"px";
+  mo.appendChild(d); motes.push({el:d,x:R(0,540),y:R(0,960),sp:R(7,18),ph:R(0,6.28)});
+}
+
+/* ── 時間軸 ───────────────────────────────────────────────────────── */
+var DUR=60, SEG=5, N=12;
+var IDS=["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12"];
+
+window.seek=function(t){
+  var idx=clamp(Math.floor(t/SEG),0,N-1);
+
+  /* 場景顯示：新的一顆疊在舊的上面淡入（不要兩層都半透明，會有鬼影） */
+  for(var i=0;i<N;i++){
+    var t0=i*SEG, t1=t0+SEG;
+    var vis=(t>=t0-0.65 && t<t1+0.2);
+    var g=S[IDS[i]];
+    g.setAttribute("display",vis?"inline":"none");
+    if(vis) g.setAttribute("opacity", i===0?1:clamp(ease((t-(t0-0.55))/0.6),0,1));
+  }
+
+  /* 每顆鏡頭的運鏡 */
+  for(var i=0;i<N;i++){
+    var t0=i*SEG, u=clamp((t-t0)/SEG,0,1), e=easeIO(u), g=S[IDS[i]], k, fx, fy, dy=0;
+    switch(i){
+      case 0:  k=1+0.075*e; fx=250; fy=700; dy=-8*e; break;      // 慢推
+      case 1:  k=1+0.16*e;  fx=270; fy=430; break;               // 往通道深處推
+      case 2:  k=1+0.05*e;  fx=270; fy=760; break;               // 幾乎不動
+      case 3:  k=1+0.07*e;  fx=330; fy=850; break;               // 推向兔子
+      case 4:  k=1.10-0.10*e; fx=260; fy=860; break;             // 微退，讓牠跳出去
+      case 5:  k=1+0.09*e;  fx=280; fy=800; break;               // 跟著她
+      case 6:  k=1+0.30*e;  fx=300; fy=640; break;               // 推進那道縫
+      case 7:  k=1.26-0.26*e; fx=280; fy=560; dy=-18*(1-e); break; // 拉開，天空打開
+      case 8:  k=1+0.08*e;  fx=250; fy=780; break;
+      case 9:  k=1+0.07*e;  fx=322; fy=470; break;               // 推向日出
+      case 10: k=1+0.10*e;  fx=304; fy=690; break;               // 推向掌心
+      case 11: k=1.16-0.16*e; fx=300; fy=620; dy=-14*e; break;   // 最後拉遠
+    }
+    g.setAttribute("transform",cam(fx,fy,k,0,dy));
+  }
+
+  var w1=wind(t,0,0.5), w2=wind(t,1.6,0.9), br=Math.sin(t*0.9)*0.9;
+
+  /* S1 */
+  for(var i=0;i<r1a.length;i++) r1a[i].setAttribute("transform","rotate("+(w1*0.5)+" "+(-22+i*30)+" 250)");
+  for(var i=0;i<r1b.length;i++) r1b[i].setAttribute("transform","rotate("+(w1*0.8)+" "+(-28+i*50)+" 414)");
+  for(var i=0;i<r1c.length;i++) r1c[i].setAttribute("transform","rotate("+(w2*0.7+Math.sin(t*0.83+i*1.3)*0.3)+" "+(-34+i*80)+" 606)");
+  f1.coat.setAttribute("transform","rotate("+(Math.sin(t*0.7)*0.8)+" 0 -130)");
+  b1.e1.setAttribute("transform","rotate("+(-14*earTwitch(t,[2.4,4.1]))+" 8 -25)");
+
+  /* S2：通道裡只有風，人在很遠的盡頭 */
+  f2.coat.setAttribute("transform","rotate("+(Math.sin(t*0.8)*1.2)+" 0 -130)");
+
+  /* S3：呼吸與衣角 */
+  var sway3=Math.sin(t*0.66+0.4)*0.9+Math.sin(t*1.27)*0.32;
+  f3.coat.setAttribute("transform","rotate("+sway3+" 0 -132) translate(0,"+(br*0.3)+")");
+  f3.head.setAttribute("transform","rotate("+(sway3*1.2+Math.sin(t*0.31)*0.7)+" 0 -140) translate(0,"+(br*0.45)+")");
+
+  /* S4：兔子淡入 + 落地 */
+  var u4=clamp((t-15)/5,0,1), app=ease((u4-0.18)/0.34);
+  b4.g.setAttribute("opacity",clamp(app,0,1));
+  var hop4=(u4>0.52&&u4<0.72)?Math.sin((u4-0.52)/0.20*Math.PI)*13:0;
+  b4.g.setAttribute("transform","translate(372,"+(884-hop4)+") scale(1.55)");
+  b4.e1.setAttribute("transform","rotate("+(-16*earTwitch(t,[17.4,19.2]))+" 8 -25)");
+  f4.coat.setAttribute("transform","rotate("+(Math.sin(t*0.7)*0.9)+" 0 -130)");
+
+  /* S5：往前跳兩下，最後回頭 */
+  var u5=clamp((t-20)/5,0,1);
+  var adv=easeIO(clamp(u5/0.62,0,1))*156;
+  var hp=0;
+  if(u5<0.62){var ph=(u5/0.62)*2; hp=Math.abs(Math.sin(ph*Math.PI))*22;}
+  b5.g.setAttribute("transform","translate("+(190+adv)+","+(880-hp)+") scale(3.1)");
+  var look=clamp((u5-0.66)/0.16,0,1);
+  b5.head.setAttribute("transform","translate("+(22*ease(look))+",0) scale("+(1-2*ease(look))+",1)");
+  b5.e1.setAttribute("transform","rotate("+(-18*earTwitch(t,[23.9]))+" 8 -25)");
+  for(var i=0;i<1;i++) f5.coat.setAttribute("transform","rotate("+(Math.sin(t*0.7)*1.1)+" 0 -130)");
+
+  /* S6：她跟上去 —— 往畫面深處走，人變小 */
+  var u6=clamp((t-25)/5,0,1), go=easeIO(clamp((u6-0.22)/0.78,0,1));
+  f6.g.setAttribute("transform","translate("+(252+10*go)+","+(930-64*go)+") scale("+(1.85-0.30*go)+")");
+  var sw6=Math.sin(t*1.5)*1.9*(0.35+go);
+  f6.coat.setAttribute("transform","rotate("+sw6+" 0 -132)");
+  f6.head.setAttribute("transform","rotate("+(sw6*0.6)+" 0 -140)");
+  b6.g.setAttribute("transform","translate("+(344+14*go)+","+(826-34*go)+") scale("+(0.95-0.16*go)+")");
+
+  /* S7：縫裡的光越來越亮 */
+  var u7=clamp((t-30)/5,0,1);
+  gapCore.setAttribute("opacity",0.72+0.26*easeIO(u7));
+  gapGlow.setAttribute("opacity",0.45+0.55*easeIO(u7));
+  shaft.setAttribute("opacity",0.25+0.75*easeIO(u7));
+  gapCore.setAttribute("transform","translate(0,0) scale("+(1+0.10*easeIO(u7))+",1) translate("+(-300*(0.10*easeIO(u7)))+",0)");
+
+  /* S8：穿出去 —— 雲流動、人往前 */
+  var u8=clamp((t-35)/5,0,1);
+  g8c.setAttribute("transform","translate("+(u8*16)+",0)");
+  f8.coat.setAttribute("transform","rotate("+(Math.sin(t*0.9)*1.4)+" 0 -130)");
+  b8.e1.setAttribute("transform","rotate("+(-14*earTwitch(t,[37.1,39.0]))+" 8 -25)");
+
+  /* S9：大風 */
+  var u9=clamp((t-40)/5,0,1), gust=Math.sin(t*0.9)*2.4+Math.sin(t*2.1+1)*1.3;
+  g9c.setAttribute("transform","translate("+(u9*34)+",0)");
+  f9.coat.setAttribute("transform","rotate("+(2.2+gust*1.15)+" 0 -132) skewX("+(gust*0.3)+")");
+  f9.head.setAttribute("transform","rotate("+(1.4+gust*0.6)+" 0 -142)");
+  for(var i=0;i<blades9.length;i++){
+    var b=blades9[i], a=10+Math.sin(t*1.4+b.ph)*6+Math.sin(t*0.5+b.ph)*4;
+    b.el.setAttribute("transform","rotate("+a+" "+b.x+" "+b.y+")");
+  }
+
+  /* S10：太陽升起、海面閃 */
+  var u10=clamp((t-45)/5,0,1);
+  var sy=398-26*easeIO(u10);
+  sunDisc.setAttribute("cy",sy); sunGlow.setAttribute("cy",sy);
+  sunGlow.setAttribute("opacity",0.72+0.22*easeIO(u10));
+  seaPath.setAttribute("opacity",0.7+0.3*Math.abs(Math.sin(t*0.9)));
+  f10.coat.setAttribute("transform","rotate("+(Math.sin(t*0.8)*1.3)+" 0 -130)");
+
+  /* S11：掌心的光 */
+  var u11=clamp((t-50)/5,0,1), gl=ease(clamp((u11-0.10)/0.5,0,1));
+  var pulse=1+0.05*Math.sin(t*1.7);
+  palmGlow.setAttribute("opacity",gl); palmCore.setAttribute("opacity",gl);
+  palmGlow.setAttribute("transform","translate(306,672) scale("+(gl*pulse)+") translate(-306,-672)");
+  rays.setAttribute("opacity",gl*0.5);
+  rays.setAttribute("transform","rotate("+(t*7)+" 306 672)");
+  for(var i=0;i<sparks.length;i++){
+    var s=sparks[i], a=s.a+t*s.sp, rr=s.rr*0.78+Math.sin(t*1.1+s.ph)*10;
+    s.el.setAttribute("cx",306+Math.cos(a)*rr);
+    s.el.setAttribute("cy",672+Math.sin(a)*rr*0.72);
+    s.el.setAttribute("opacity",gl*(0.35+0.5*Math.abs(Math.sin(t*1.3+s.ph))));
+  }
+
+  /* S12：鳥飛過 */
+  var u12=clamp((t-55)/5,0,1);
+  g12c.setAttribute("transform","translate("+(u12*12)+",0)");
+  for(var i=0;i<birds12.length;i++){
+    var bd=birds12[i], lt=t-55.4-bd.dl;
+    if(lt<0||lt>6){bd.g.setAttribute("opacity",0);continue}
+    bd.g.setAttribute("opacity",clamp(Math.min(lt/0.6,(6-lt)/0.6),0,1)*0.7);
+    bd.g.setAttribute("transform","translate("+(-40+lt*74)+","+(bd.y+Math.sin(lt*0.9+bd.ph)*8)+
+      ") scale("+bd.sc+") rotate("+(Math.sin(lt*3.1+bd.ph)*8)+")");
+  }
+  f12.coat.setAttribute("transform","rotate("+(Math.sin(t*0.75)*1.4)+" 0 -130)");
+
+  /* 穿出去那一刀給一個亮閃 */
+  var fd=Math.abs(t-35);
+  document.getElementById("flash").style.opacity = fd<0.45 ? (0.62*(1-fd/0.45)) : 0;
+
+  /* 字卡：每顆鏡頭一張，進 0.7s、出 0.6s */
+  var anyCard=0;
+  for(var i=0;i<N;i++){
+    var t0=i*SEG+0.35, t1=i*SEG+SEG-0.25;
+    var o=clamp(Math.min(ease((t-t0)/0.7), 1-ease((t-(t1-0.6))/0.6)),0,1);
+    CARD[i].style.opacity=o;
+    CARD[i].style.transform="translateY("+((1-ease((t-t0)/0.7))*18)+"px)";
+    if(o>anyCard) anyCard=o;
+  }
+  document.getElementById("scrim").style.opacity=anyCard;
+
+  /* 浮塵：只在有光的鏡頭明顯 */
+  var dust=(idx===6)?1:(idx>=9?0.7:0.35);
+  for(var i=0;i<motes.length;i++){
+    var m=motes[i], y=((m.y-t*m.sp)%1000+1000)%1000;
+    m.el.style.left=(m.x+Math.sin(t*0.55+m.ph)*16)+"px";
+    m.el.style.top=(y-20)+"px";
+    m.el.style.opacity=dust*(0.22+0.4*Math.abs(Math.sin(t*0.8+m.ph)));
+  }
+
+  /* 頭尾 */
+  var fade=Math.min(ease(t/1.0), clamp(1-ease((t-(DUR-1.2))/1.2),0,1));
+  document.getElementById("stage").style.opacity=clamp(fade,0,1);
+};
+window.seek(0);
+</script>
+</body>
+</html>
